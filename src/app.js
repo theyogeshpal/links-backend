@@ -27,6 +27,11 @@ const limiter = rateLimit({
 // Apply to all requests
 app.use(limiter);
 
+// Health check route
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date(), message: 'Backend is running' });
+});
+
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/survey', surveyRoutes);

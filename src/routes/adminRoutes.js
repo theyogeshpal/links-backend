@@ -11,6 +11,8 @@ router.get('/dashboard', adminController.getDashboardStats);
 // Companies
 router.get('/companies', adminController.getCompanies);
 router.post('/companies', adminController.createCompany);
+router.put('/companies/:id', adminController.updateCompany);
+router.delete('/companies/:id', adminController.deleteCompany);
 
 // Vendor Redirects
 router.get('/vendor-redirects', adminController.getVendorRedirects);

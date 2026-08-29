@@ -66,6 +66,20 @@ exports.createCompany = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.updateCompany = async (req, res, next) => {
+  try {
+    const company = await Company.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(company);
+  } catch (error) { next(error); }
+};
+
+exports.deleteCompany = async (req, res, next) => {
+  try {
+    await Company.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) { next(error); }
+};
+
 exports.getVendorRedirects = async (req, res, next) => {
     try {
         const redirects = await VendorRedirect.find().populate('vendorId');

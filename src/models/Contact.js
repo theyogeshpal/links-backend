@@ -16,7 +16,7 @@ const contactSchema = new mongoose.Schema({
   zipCode: String,
   country: String,
   state: String,
-  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
+  status: { type: String, enum: ['Active', 'Inactive', 'Disabled'], default: 'Active' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Contact', contactSchema);

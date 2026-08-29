@@ -258,6 +258,9 @@ exports.getContacts = async (req, res, next) => {
 exports.createContact = async (req, res, next) => {
   try { res.status(201).json(await new Contact(req.body).save()); } catch (e) { next(e); }
 };
+exports.updateContact = async (req, res, next) => {
+  try { res.json(await Contact.findByIdAndUpdate(req.params.id, req.body, { new: true })); } catch (e) { next(e); }
+};
 exports.deleteContact = async (req, res, next) => {
   try { await Contact.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e) { next(e); }
 };

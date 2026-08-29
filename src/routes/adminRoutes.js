@@ -47,6 +47,7 @@ router.delete('/contact-types/:id', adminController.deleteContactType);
 
 router.get('/contacts', adminController.getContacts);
 router.post('/contacts', adminController.createContact);
+router.put('/contacts/:id', adminController.updateContact);
 router.delete('/contacts/:id', adminController.deleteContact);
 
 module.exports = router;

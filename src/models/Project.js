@@ -5,7 +5,7 @@ const projectSchema = new mongoose.Schema({
   name: { type: String, required: true },
   parentProjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
   studyTypeId: { type: mongoose.Schema.Types.ObjectId, ref: 'StudyType' },
-  country: { type: String },
+  country: { type: [String] },
   language: { type: String },
   surveyLink: { type: String, required: true },
   surveyTestLink: { type: String },

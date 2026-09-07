@@ -33,6 +33,15 @@ router.get('/projects/:id/qualifications', adminController.getProjectQualificati
 router.post('/projects/:id/qualifications', adminController.createProjectQualification);
 router.delete('/qualifications/:id', adminController.deleteProjectQualification);
 
+// Project Quotas
+router.get('/projects/:id/quotas', adminController.getProjectQuotas);
+router.post('/projects/:id/quotas', adminController.createProjectQuotas || adminController.createProjectQuota);
+router.delete('/quotas/:quotaId', adminController.deleteProjectQuota);
+
+// Client Codes
+router.get('/projects/:id/client-codes', adminController.getClientCodes);
+router.post('/projects/:id/client-codes/import', adminController.importClientCodes);
+
 // Sessions
 router.get('/sessions', adminController.getSessions);
 

@@ -278,3 +278,47 @@ exports.updateContact = async (req, res, next) => {
 exports.deleteContact = async (req, res, next) => {
   try { await Contact.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e) { next(e); }
 };
+exports.getProjectQuotas = async (req, res, next) => {
+  try {
+    const ProjectQuota = require('../models/ProjectQuota');
+    const quotas = await ProjectQuota.find({ projectId: req.params.id }).populate('qualificationId');
+    res.json(quotas);
+  } catch (e) { next(e); }
+};
+exports.createProjectQuota = async (req, res, next) => {
+  try {
+    const ProjectQuota = require('../models/ProjectQuota');
+    const quota = new ProjectQuota({ ...req.body, projectId: req.params.id });
+    await quota.save();
+    res.status(201).json(quota);
+  } catch (e) { next(e); }
+};
+exports.deleteProjectQuota = async (req, res, next) => {
+  try {
+    const ProjectQuota = require('../models/ProjectQuota');
+    await ProjectQuota.findByIdAndDelete(req.params.quotaId);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+};
+exports.getClientCodes = async (req, res, next) => {
+  try {
+    const ClientCode = require('../models/ClientCode');
+    const codes = await ClientCode.find({ projectId: req.params.id });
+    res.json(codes);
+  } catch (e) { next(e); }
+};
+exports.importClientCodes = async (req, res, next) => {
+  try {
+    const ClientCode = require('../models/ClientCode');
+    const { codes } = req.body; // Array of string codes
+    if (!codes || !Array.isArray(codes)) return res.status(400).json({ message: 'Invalid codes array' });
+    
+    const docs = codes.map(c => ({
+      projectId: req.params.id,
+      clientCode: c,
+      isUsed: false
+    }));
+    await ClientCode.insertMany(docs);
+    res.json({ success: true, count: docs.length });
+  } catch (e) { next(e); }
+};

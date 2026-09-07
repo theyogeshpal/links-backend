@@ -10,6 +10,10 @@ const projectSchema = new mongoose.Schema({
   surveyLink: { type: String, required: true },
   surveyTestLink: { type: String },
   cpc: { type: Number, required: true, default: 0 },
+  vendorMaxCpc: { type: Number, default: 0 },
+  surveyFriendlyName: { type: String },
+  pv: { type: Number, default: 0 },
+  setupCost: { type: Number, default: 0 },
   invoiceCurrency: { type: String, default: 'US Dollar' },
   conversionRate: { type: Number, default: 1 },
 

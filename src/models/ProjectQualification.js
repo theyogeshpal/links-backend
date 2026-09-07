@@ -8,7 +8,6 @@ const projectQualificationSchema = new mongoose.Schema({
   },
   questionType: { 
     type: String, 
-    enum: ['Age', 'Gender', 'Custom'], 
     required: true 
   },
   // Used for Range questions (like Age)

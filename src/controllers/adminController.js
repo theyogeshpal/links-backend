@@ -288,7 +288,7 @@ exports.getProjectQuotas = async (req, res, next) => {
 exports.createProjectQuota = async (req, res, next) => {
   try {
     const ProjectQuota = require('../models/ProjectQuota');
-    const quota = new ProjectQuota({ ...req.body, projectId: req.params.id });
+    let body = { ...req.body, projectId: req.params.id }; if(!body.qualificationId) delete body.qualificationId; const quota = new ProjectQuota(body);
     await quota.save();
     res.status(201).json(quota);
   } catch (e) { next(e); }
@@ -322,3 +322,4 @@ exports.importClientCodes = async (req, res, next) => {
     res.json({ success: true, count: docs.length });
   } catch (e) { next(e); }
 };
+

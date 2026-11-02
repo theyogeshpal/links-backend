@@ -187,6 +187,15 @@ exports.getProjectStats = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.getProjectSessions = async (req, res, next) => {
+  try {
+    const sessions = await SurveySession.find({ projectId: req.params.id })
+      .populate('vendorId', 'name')
+      .sort({ createdAt: -1 });
+    res.json(sessions);
+  } catch (error) { next(error); }
+};
+
 // Project Suppliers CRUD
 exports.getProjectSuppliers = async (req, res, next) => {
   try {

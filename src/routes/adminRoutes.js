@@ -23,6 +23,7 @@ router.post('/projects', adminController.createProject);
 router.get('/projects/:id', adminController.getProjectById);
 router.put('/projects/:id', adminController.updateProject);
 router.get('/projects/:id/stats', adminController.getProjectStats);
+router.get('/projects/:id/sessions', adminController.getProjectSessions);
 
 // Project Suppliers
 router.get('/projects/:id/suppliers', adminController.getProjectSuppliers);

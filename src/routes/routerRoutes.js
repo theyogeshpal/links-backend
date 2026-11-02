@@ -10,4 +10,8 @@ router.get('/entry/:projectId/:supplierId', routerController.handleEntry);
 // e.g. GET /api/v1/router/end/success/64a...?ttpid=uuid-1234
 router.get('/end/:status/:projectId', routerController.handleEnd);
 
+// Standard / Legacy Redirect Endpoints (matching screenshot)
+router.get('/redirect-process', routerController.handleRedirectProcess);
+router.get('/redirect-postback', routerController.handleRedirectPostback);
+
 module.exports = router;

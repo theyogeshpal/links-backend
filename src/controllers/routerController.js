@@ -1,6 +1,17 @@
 const Project = require('../models/Project');
 const ProjectSupplier = require('../models/ProjectSupplier');
 const SurveySession = require('../models/SurveySession');
+const crypto = require('crypto');
+
+exports.getProjectAuthTokens = (projectId) => {
+  const salt = 'ttp_salt_2026';
+  return {
+    complete: crypto.createHash('md5').update(`1_${projectId}_${salt}`).digest('hex'),
+    terminate: crypto.createHash('md5').update(`2_${projectId}_${salt}`).digest('hex'),
+    quotafull: crypto.createHash('md5').update(`3_${projectId}_${salt}`).digest('hex'),
+    security: crypto.createHash('md5').update(`4_${projectId}_${salt}`).digest('hex')
+  };
+};
 
 exports.handleEntry = async (req, res, next) => {
   try {
@@ -40,11 +51,8 @@ exports.handleEntry = async (req, res, next) => {
     await supplierConfig.save();
 
     // 4. Construct the Foreign Client Survey Link
-    // The foreign client's link will have a placeholder like `&uid=[ID]` or something we define.
-    // For now, we'll assume the URL might have `[TTPID]` placeholder, or we just append it.
     let redirectUrl = project.surveyLink;
     
-    // Replace placeholder if it exists, otherwise append
     if (redirectUrl.includes('[TTPID]')) {
       redirectUrl = redirectUrl.replace(/\[TTPID\]/g, session.sessionId);
     } else {
@@ -125,7 +133,6 @@ exports.handleEnd = async (req, res, next) => {
     ]);
 
     // 5. Construct final redirect to Supplier
-    // We replace the `[PID]` placeholder in the vendor's URL with the original panellistId
     if (redirectUrl.includes('[PID]')) {
       redirectUrl = redirectUrl.replace(/\[PID\]/g, session.panellistId);
     } else {
@@ -135,6 +142,70 @@ exports.handleEnd = async (req, res, next) => {
 
     res.redirect(redirectUrl);
 
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.handleRedirectProcess = async (req, res, next) => {
+  try {
+    const { supp_code, status, pid, authToken } = req.query;
+    const trackingId = pid || req.query.ttpid;
+
+    if (!trackingId) {
+      return res.status(400).send('Missing tracking ID (pid / ttpid)');
+    }
+
+    const session = await SurveySession.findOne({ sessionId: trackingId });
+    if (!session) {
+      return res.status(404).send('Invalid tracking session');
+    }
+
+    let endStatus = 'success';
+    if (authToken) {
+      const tokens = exports.getProjectAuthTokens(session.projectId.toString());
+      if (authToken === tokens.complete) endStatus = 'success';
+      else if (authToken === tokens.terminate) endStatus = 'disqualified';
+      else if (authToken === tokens.quotafull) endStatus = 'quotafull';
+      else if (authToken === tokens.security) endStatus = 'security';
+    } else if (status) {
+      if (status === '1') endStatus = 'success';
+      else if (status === '2') endStatus = 'disqualified';
+      else if (status === '3') endStatus = 'quotafull';
+      else if (status === '4') endStatus = 'security';
+    }
+
+    req.params = { status: endStatus, projectId: session.projectId.toString() };
+    req.query = { ttpid: trackingId };
+    return exports.handleEnd(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.handleRedirectPostback = async (req, res, next) => {
+  try {
+    const { pid, status_id } = req.query;
+    const trackingId = pid || req.query.ttpid;
+
+    if (!trackingId) {
+      return res.status(400).json({ success: false, message: 'Missing pid' });
+    }
+
+    const session = await SurveySession.findOne({ sessionId: trackingId });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Invalid session' });
+    }
+
+    let endStatus = 'success';
+    if (status_id === '1') endStatus = 'success';
+    else if (status_id === '2') endStatus = 'disqualified';
+    else if (status_id === '3') endStatus = 'quotafull';
+    else if (status_id === '4') endStatus = 'security';
+
+    req.params = { status: endStatus, projectId: session.projectId.toString() };
+    req.query = { ttpid: trackingId };
+    return exports.handleEnd(req, res, next);
   } catch (error) {
     next(error);
   }

@@ -39,6 +39,11 @@ app.use('/api/v1/admin', authMiddleware, adminRoutes);
 app.use('/api/v1/router', routerRoutes);
 app.use('/api/v1/supplier', supplierRoutes);
 
+// Root level redirect handlers (matching legacy format)
+const routerController = require('./controllers/routerController');
+app.get('/redirect-process', routerController.handleRedirectProcess);
+app.get('/redirect-postback', routerController.handleRedirectPostback);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

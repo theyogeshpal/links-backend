@@ -53,7 +53,18 @@ exports.getDashboardStats = async (req, res, next) => {
 // Companies CRUD
 exports.getCompanies = async (req, res, next) => {
   try {
-    const companies = await Company.find().sort({ createdAt: -1 });
+    const filter = {};
+    if (req.query.type) {
+      const typeQuery = req.query.type.toLowerCase();
+      if (typeQuery === 'client') {
+        filter.companyType = { $in: ['Client', 'Both', /^client$/i, /^both/i] };
+      } else if (typeQuery === 'vendor') {
+        filter.companyType = { $in: ['Vendor', 'Both', /^vendor$/i, /^both/i] };
+      } else {
+        filter.companyType = new RegExp(`^${req.query.type}$`, 'i');
+      }
+    }
+    const companies = await Company.find(filter).sort({ createdAt: -1 });
     res.json(companies);
   } catch (error) { next(error); }
 };

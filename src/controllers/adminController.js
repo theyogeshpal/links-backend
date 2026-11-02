@@ -198,9 +198,26 @@ exports.getProjectSuppliers = async (req, res, next) => {
 exports.createProjectSupplier = async (req, res, next) => {
   try {
     const payload = { ...req.body, projectId: req.params.id };
+    if (!payload.supplierCode) {
+      payload.supplierCode = String(Math.floor(10000 + Math.random() * 90000));
+    }
     const supplier = new ProjectSupplier(payload);
     await supplier.save();
     res.status(201).json(supplier);
+  } catch (error) { next(error); }
+};
+
+exports.updateProjectSupplier = async (req, res, next) => {
+  try {
+    const supplier = await ProjectSupplier.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(supplier);
+  } catch (error) { next(error); }
+};
+
+exports.deleteProjectSupplier = async (req, res, next) => {
+  try {
+    await ProjectSupplier.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
   } catch (error) { next(error); }
 };
 

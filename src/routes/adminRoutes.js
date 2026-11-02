@@ -27,6 +27,8 @@ router.get('/projects/:id/stats', adminController.getProjectStats);
 // Project Suppliers
 router.get('/projects/:id/suppliers', adminController.getProjectSuppliers);
 router.post('/projects/:id/suppliers', adminController.createProjectSupplier);
+router.put('/suppliers/:id', adminController.updateProjectSupplier);
+router.delete('/suppliers/:id', adminController.deleteProjectSupplier);
 
 // Project Qualifications
 router.get('/projects/:id/qualifications', adminController.getProjectQualifications);

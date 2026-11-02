@@ -11,6 +11,9 @@ const projectSupplierSchema = new mongoose.Schema({
   securityTerminateUrl: { type: String, required: true },
 
   // Tracking metrics
+  supplierCode: { type: String },
+  allocatedHits: { type: Number, default: 1500 },
+  allocatedCompletes: { type: Number, default: 150 },
   hits: { type: Number, default: 0 },
   completed: { type: Number, default: 0 },
   disqualified: { type: Number, default: 0 },
@@ -19,7 +22,7 @@ const projectSupplierSchema = new mongoose.Schema({
   
   // Cost tracking
   cpc: { type: Number, default: 0 },
-  status: { type: String, enum: ['Running', 'Paused', 'Closed'], default: 'Running' }
+  status: { type: String, default: 'Testing' }
 }, { timestamps: true });
 
 // Ensure a company can only be added to a project once

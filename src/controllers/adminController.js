@@ -105,7 +105,11 @@ exports.getProjects = async (req, res, next) => {
 
 exports.createProject = async (req, res, next) => {
   try {
-    const project = new Project(req.body);
+    const payload = { ...req.body };
+    ['studyTypeId', 'clientId', 'clientContactId', 'parentProjectId', 'startDate', 'endDate'].forEach(field => {
+      if (payload[field] === '') payload[field] = null;
+    });
+    const project = new Project(payload);
     await project.save();
     res.status(201).json(project);
   } catch (error) { next(error); }
@@ -121,7 +125,11 @@ exports.getProjectById = async (req, res, next) => {
 
 exports.updateProject = async (req, res, next) => {
   try {
-    const project = await Project.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const payload = { ...req.body };
+    ['studyTypeId', 'clientId', 'clientContactId', 'parentProjectId', 'startDate', 'endDate'].forEach(field => {
+      if (payload[field] === '') payload[field] = null;
+    });
+    const project = await Project.findByIdAndUpdate(req.params.id, payload, { new: true });
     if (!project) return res.status(404).json({ message: 'Project not found' });
     res.json(project);
   } catch (error) { next(error); }
@@ -270,10 +278,22 @@ exports.getContacts = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 exports.createContact = async (req, res, next) => {
-  try { res.status(201).json(await new Contact(req.body).save()); } catch (e) { next(e); }
+  try {
+    const payload = { ...req.body };
+    if (!payload.contactTypeId) payload.contactTypeId = null;
+    if (!payload.companyId) payload.companyId = null;
+    if (!payload.dateOfBirth) payload.dateOfBirth = null;
+    res.status(201).json(await new Contact(payload).save());
+  } catch (e) { next(e); }
 };
 exports.updateContact = async (req, res, next) => {
-  try { res.json(await Contact.findByIdAndUpdate(req.params.id, req.body, { new: true })); } catch (e) { next(e); }
+  try {
+    const payload = { ...req.body };
+    if (!payload.contactTypeId) payload.contactTypeId = null;
+    if (!payload.companyId) payload.companyId = null;
+    if (!payload.dateOfBirth) payload.dateOfBirth = null;
+    res.json(await Contact.findByIdAndUpdate(req.params.id, payload, { new: true }));
+  } catch (e) { next(e); }
 };
 exports.deleteContact = async (req, res, next) => {
   try { await Contact.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e) { next(e); }

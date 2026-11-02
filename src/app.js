@@ -42,7 +42,8 @@ app.use('/api/v1/supplier', supplierRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Internal Server Error', error: err.message });
+  const status = err.statusCode || (err.name === 'ValidationError' || err.name === 'CastError' ? 400 : 500);
+  res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
 });
 
 module.exports = app;

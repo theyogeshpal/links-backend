@@ -47,6 +47,9 @@ router.get('/projects/:id/client-codes', adminController.getClientCodes);
 router.post('/projects/:id/client-codes/import', adminController.importClientCodes);
 router.delete('/projects/:id/client-codes/unused', adminController.clearUnusedClientCodes);
 
+// Reconciliation
+router.post('/projects/:id/reconcile', adminController.reconcileProject);
+
 // Sessions
 router.get('/sessions', adminController.getSessions);
 

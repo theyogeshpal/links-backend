@@ -395,3 +395,84 @@ exports.clearUnusedClientCodes = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.reconcileProject = async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const { items } = req.body; // Array of { ttpid, status_id }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'No reconciliation items provided' });
+    }
+
+    let approved = 0;
+    let rejected = 0;
+    let updated = 0;
+
+    for (const item of items) {
+      const trackingId = (item.ttpid || item.TTPID || item.id || '').trim();
+      const rawStatus = (item.status_id || item.status || item.Status_ID || '').toString().trim().toLowerCase();
+
+      if (!trackingId) continue;
+
+      const session = await SurveySession.findOne({
+        projectId,
+        $or: [{ sessionId: trackingId }, { _id: trackingId.length === 24 ? trackingId : null }]
+      });
+
+      if (!session) continue;
+
+      // Status mapping: 1 / 6 / complete / approved = Complete
+      let newStatusCode = session.statusCode;
+      if (rawStatus === '1' || rawStatus === '6' || rawStatus === 'complete' || rawStatus === 'approved') {
+        newStatusCode = 6;
+        approved++;
+      } else if (rawStatus === '2' || rawStatus === '7' || rawStatus === 'terminate' || rawStatus === 'disqualified' || rawStatus === 'rejected') {
+        newStatusCode = 7;
+        rejected++;
+      } else if (rawStatus === '3' || rawStatus === '8' || rawStatus === 'quotafull') {
+        newStatusCode = 8;
+        rejected++;
+      } else if (rawStatus === '4' || rawStatus === '10' || rawStatus === 'security') {
+        newStatusCode = 10;
+        rejected++;
+      }
+
+      if (session.statusCode !== newStatusCode) {
+        session.statusCode = newStatusCode;
+        await session.save();
+        updated++;
+      }
+    }
+
+    // Recalculate Project Completed Count
+    const totalApproved = await SurveySession.countDocuments({ projectId, statusCode: 6 });
+    await Project.findByIdAndUpdate(projectId, { completedCount: totalApproved });
+
+    // Recalculate each Supplier's completed count
+    const suppliers = await ProjectSupplier.find({ projectId });
+    for (const supp of suppliers) {
+      const suppCompletes = await SurveySession.countDocuments({ projectId, vendorId: supp.companyId, statusCode: 6 });
+      const suppDisqualified = await SurveySession.countDocuments({ projectId, vendorId: supp.companyId, statusCode: 7 });
+      const suppQuotaFull = await SurveySession.countDocuments({ projectId, vendorId: supp.companyId, statusCode: 8 });
+      const suppSec = await SurveySession.countDocuments({ projectId, vendorId: supp.companyId, statusCode: { $gte: 10 } });
+      
+      supp.completed = suppCompletes;
+      supp.disqualified = suppDisqualified;
+      supp.quotaFull = suppQuotaFull;
+      supp.securityTerminate = suppSec;
+      await supp.save();
+    }
+
+    res.json({
+      success: true,
+      totalProcessed: items.length,
+      approved,
+      rejected,
+      updatedSessions: updated,
+      message: `Reconciliation completed successfully: ${approved} approved, ${rejected} rejected.`
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+

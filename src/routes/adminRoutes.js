@@ -44,6 +44,7 @@ router.delete('/quotas/:quotaId', adminController.deleteProjectQuota);
 // Client Codes
 router.get('/projects/:id/client-codes', adminController.getClientCodes);
 router.post('/projects/:id/client-codes/import', adminController.importClientCodes);
+router.delete('/projects/:id/client-codes/unused', adminController.clearUnusedClientCodes);
 
 // Sessions
 router.get('/sessions', adminController.getSessions);

@@ -367,3 +367,11 @@ exports.importClientCodes = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.clearUnusedClientCodes = async (req, res, next) => {
+  try {
+    const ClientCode = require('../models/ClientCode');
+    const result = await ClientCode.deleteMany({ projectId: req.params.id, isUsed: false });
+    res.json({ success: true, deletedCount: result.deletedCount });
+  } catch (e) { next(e); }
+};
+

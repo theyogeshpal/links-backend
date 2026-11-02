@@ -10,15 +10,33 @@ const projectQualificationSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  // Used for Range questions (like Age)
-  rangeStart: { type: Number },
-  rangeEnd: { type: Number },
+  questionName: { type: String },
+  fieldType: { type: String, default: 'Range' }, // 'Range' or 'Dropdown'
   
-  // Used for Dropdown questions (like Gender)
+  // Multi-row ranges (e.g. for Age)
+  ranges: [{
+    start: { type: mongoose.Schema.Types.Mixed },
+    end: { type: mongoose.Schema.Types.Mixed },
+    valid: { type: Number, default: 1 },
+    isActive: { type: Boolean, default: true },
+    optionText: { type: String, default: '-' }
+  }],
+
+  // Single range backward-compatibility
+  rangeStart: { type: mongoose.Schema.Types.Mixed },
+  rangeEnd: { type: mongoose.Schema.Types.Mixed },
+  
+  // Options for Dropdowns (e.g. Gender)
   options: [{ type: String }],
+  optionItems: [{
+    optionText: { type: String },
+    start: { type: String, default: '-' },
+    end: { type: String, default: '-' },
+    valid: { type: Number, default: 1 },
+    isActive: { type: Boolean, default: true }
+  }],
   
   customQuestionName: { type: String },
-
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

@@ -221,6 +221,13 @@ exports.createProjectQualification = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.updateProjectQualification = async (req, res, next) => {
+  try {
+    const rule = await ProjectQualification.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(rule);
+  } catch (error) { next(error); }
+};
+
 exports.deleteProjectQualification = async (req, res, next) => {
   try {
     await ProjectQualification.findByIdAndDelete(req.params.id);

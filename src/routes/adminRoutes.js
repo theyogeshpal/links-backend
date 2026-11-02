@@ -31,6 +31,7 @@ router.post('/projects/:id/suppliers', adminController.createProjectSupplier);
 // Project Qualifications
 router.get('/projects/:id/qualifications', adminController.getProjectQualifications);
 router.post('/projects/:id/qualifications', adminController.createProjectQualification);
+router.put('/qualifications/:id', adminController.updateProjectQualification);
 router.delete('/qualifications/:id', adminController.deleteProjectQualification);
 
 // Project Quotas

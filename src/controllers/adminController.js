@@ -11,40 +11,272 @@ const ProjectQualification = require('../models/ProjectQualification');
 // Dashboard Stats
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    const totalProjects = await Project.countDocuments();
-    const activeProjects = await Project.countDocuments({ status: 'Running' });
+    const { timeframe } = req.query; // '1 Day', '1 Week', '1 Month', '3 Months', 'All'
+    const now = new Date();
+    let dateFilter = {};
     
-    // Aggregate session stats
-    const sessionStats = await SurveySession.aggregate([
+    if (timeframe === '1 Day' || timeframe === '1day') {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      dateFilter = { createdAt: { $gte: startOfDay } };
+    } else if (timeframe === '1 Week' || timeframe === '1week') {
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      dateFilter = { createdAt: { $gte: oneWeekAgo } };
+    } else if (timeframe === '1 Month' || timeframe === '1month') {
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      dateFilter = { createdAt: { $gte: oneMonthAgo } };
+    } else if (timeframe === '3 Months' || timeframe === '3months') {
+      const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      dateFilter = { createdAt: { $gte: threeMonthsAgo } };
+    }
+
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // 1. Today's Performance Stats
+    const todaySessions = await SurveySession.aggregate([
+      { $match: { createdAt: { $gte: startOfToday } } },
+      { $group: { _id: '$statusCode', count: { $sum: 1 } } }
+    ]);
+
+    const todayStats = {
+      completed: 0,
+      disqualified: 0,
+      quotaFull: 0,
+      securityTerm: 0,
+      blocked: 0,
+      redirected: 0
+    };
+
+    todaySessions.forEach(s => {
+      if (s._id === 6) todayStats.completed = s.count;
+      else if (s._id === 7) todayStats.disqualified = s.count;
+      else if (s._id === 8) todayStats.quotaFull = s.count;
+      else if (s._id === 9) todayStats.redirected = s.count;
+      else if (s._id === 10) todayStats.securityTerm = s.count;
+      else if (s._id >= 11) todayStats.blocked += s.count;
+    });
+
+    // Fallback: If no today activity, compute all-time session stats so dashboard always reflects real data
+    const allSessions = await SurveySession.aggregate([
+      { $group: { _id: '$statusCode', count: { $sum: 1 } } }
+    ]);
+    const allStats = {
+      completed: 0,
+      disqualified: 0,
+      quotaFull: 0,
+      securityTerm: 0,
+      blocked: 0,
+      redirected: 0
+    };
+    allSessions.forEach(s => {
+      if (s._id === 6) allStats.completed = s.count;
+      else if (s._id === 7) allStats.disqualified = s.count;
+      else if (s._id === 8) allStats.quotaFull = s.count;
+      else if (s._id === 9) allStats.redirected = s.count;
+      else if (s._id === 10) allStats.securityTerm = s.count;
+      else if (s._id >= 11) allStats.blocked += s.count;
+    });
+
+    // 2. Project Status Matrix
+    const [runningProjects, onHoldProjects, awaitingIdsProjects, completedProjects, archivedProjects, totalProjects] = await Promise.all([
+      Project.countDocuments({ status: 'Running' }),
+      Project.countDocuments({ status: 'On Hold' }),
+      Project.countDocuments({ status: { $in: ['Awaiting IDs', 'Testing', 'Select Status'] } }),
+      Project.countDocuments({ status: { $in: ['Completed', 'Closed'] } }),
+      Project.countDocuments({ status: 'Archived' }),
+      Project.countDocuments()
+    ]);
+
+    const projectMatrix = {
+      running: runningProjects,
+      onHold: onHoldProjects,
+      awaitingIds: awaitingIdsProjects,
+      completed: completedProjects,
+      archived: archivedProjects,
+      total: totalProjects
+    };
+
+    // 3. Monthly Conversion Ratios
+    const monthSessions = await SurveySession.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $group: { _id: '$statusCode', count: { $sum: 1 } } }
+    ]);
+    let monthTotal = 0;
+    const monthCounts = { 6: 0, 7: 0, 8: 0, security: 0 };
+    monthSessions.forEach(s => {
+      monthTotal += s.count;
+      if (s._id === 6) monthCounts[6] = s.count;
+      else if (s._id === 7) monthCounts[7] = s.count;
+      else if (s._id === 8) monthCounts[8] = s.count;
+      else if (s._id >= 10) monthCounts.security += s.count;
+    });
+
+    // If no sessions this month, fallback to total across DB
+    const totalSampleCount = monthTotal > 0 ? monthTotal : (allStats.completed + allStats.disqualified + allStats.quotaFull + allStats.securityTerm + allStats.blocked + allStats.redirected);
+    const activeCounts = monthTotal > 0 ? monthCounts : {
+      6: allStats.completed,
+      7: allStats.disqualified,
+      8: allStats.quotaFull,
+      security: allStats.securityTerm + allStats.blocked
+    };
+
+    const conversionRatios = {
+      sampleSize: totalSampleCount,
+      completed: {
+        count: activeCounts[6],
+        percentage: totalSampleCount > 0 ? `${((activeCounts[6] / totalSampleCount) * 100).toFixed(2)}%` : '0%'
+      },
+      disqualified: {
+        count: activeCounts[7],
+        percentage: totalSampleCount > 0 ? `${((activeCounts[7] / totalSampleCount) * 100).toFixed(2)}%` : '0%'
+      },
+      quotaFull: {
+        count: activeCounts[8],
+        percentage: totalSampleCount > 0 ? `${((activeCounts[8] / totalSampleCount) * 100).toFixed(2)}%` : '0%'
+      },
+      securityTerminated: {
+        count: activeCounts.security,
+        percentage: totalSampleCount > 0 ? `${((activeCounts.security / totalSampleCount) * 100).toFixed(2)}%` : '0%'
+      }
+    };
+
+    // 4. Top Clients by Completes
+    const clientCompletes = await Project.aggregate([
+      { $match: { clientId: { $exists: true, $ne: null } } },
       {
         $group: {
-          _id: '$statusCode',
-          count: { $sum: 1 }
+          _id: '$clientId',
+          value: { $sum: '$completedCount' }
+        }
+      },
+      { $sort: { value: -1 } },
+      { $limit: 6 },
+      {
+        $lookup: {
+          from: 'companies',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'company'
+        }
+      },
+      { $unwind: { path: '$company', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          name: { $ifNull: ['$company.name', 'Unnamed Client'] },
+          value: { $ifNull: ['$value', 0] }
         }
       }
     ]);
 
-    const stats = {
-      totalProjects,
-      activeProjects,
-      completes: 0,
-      terminates: 0,
-      quotaFulls: 0,
-      securityBlocks: 0,
-      pending: 0
-    };
-
-    sessionStats.forEach(stat => {
-      switch (stat._id) {
-        case 6: stats.completes = stat.count; break;
-        case 7: stats.terminates = stat.count; break;
-        case 8: stats.quotaFulls = stat.count; break;
-        case 9: stats.pending = stat.count; break;
-        default: stats.securityBlocks += stat.count; break; // 10+
+    // 5. Client Traffic Distribution
+    const clientTraffic = await SurveySession.aggregate([
+      { $match: dateFilter },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'projectId',
+          foreignField: '_id',
+          as: 'project'
+        }
+      },
+      { $unwind: { path: '$project', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'companies',
+          localField: 'project.clientId',
+          foreignField: '_id',
+          as: 'client'
+        }
+      },
+      { $unwind: { path: '$client', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: { $ifNull: ['$client.name', 'Global Projects'] },
+          Redirected: { $sum: 1 },
+          Completed: { $sum: { $cond: [{ $eq: ['$statusCode', 6] }, 1, 0] } },
+          Rejected: { $sum: { $cond: [{ $in: ['$statusCode', [7, 10, 11, 14, 31, 32]] }, 1, 0] } },
+          Quotafull: { $sum: { $cond: [{ $eq: ['$statusCode', 8] }, 1, 0] } }
+        }
+      },
+      { $sort: { Redirected: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          name: '$_id',
+          Redirected: 1,
+          Completed: 1,
+          Rejected: 1,
+          Quotafull: 1
+        }
       }
+    ]);
+
+    // 6. Supplier Completes Share
+    const supplierShare = await ProjectSupplier.aggregate([
+      {
+        $group: {
+          _id: '$companyId',
+          value: { $sum: '$completed' }
+        }
+      },
+      { $sort: { value: -1 } },
+      { $limit: 6 },
+      {
+        $lookup: {
+          from: 'companies',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'company'
+        }
+      },
+      { $unwind: { path: '$company', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          name: { $ifNull: ['$company.name', 'Internal Supplier'] },
+          value: { $ifNull: ['$value', 0] }
+        }
+      }
+    ]);
+
+    // 7. Project Manager Volume
+    const pmVolume = await Project.aggregate([
+      {
+        $group: {
+          _id: { $ifNull: ['$projectManager', 'Admin TTP'] },
+          completes: { $sum: '$completedCount' },
+          projects: { $sum: 1 }
+        }
+      },
+      { $sort: { completes: -1, projects: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          name: { $cond: [{ $and: [{ $ne: ['$_id', ''] }, { $ne: ['$_id', null] }] }, '$_id', 'Admin TTP'] },
+          value: { $cond: [{ $gt: ['$completes', 0] }, '$completes', '$projects'] }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      today: todayStats,
+      allTime: allStats,
+      projectMatrix,
+      conversionRatios,
+      clientCompletes: clientCompletes.length > 0 ? clientCompletes : [
+        { name: 'No Active Clients', value: 0 }
+      ],
+      clientTraffic: clientTraffic.length > 0 ? clientTraffic : [
+        { name: 'General Traffic', Redirected: 0, Completed: 0, Rejected: 0, Quotafull: 0 }
+      ],
+      supplierShare: supplierShare.length > 0 ? supplierShare : [
+        { name: 'Internal Supplier', value: 0 }
+      ],
+      pmVolume: pmVolume.length > 0 ? pmVolume : [
+        { name: 'Admin TTP', value: 1 }
+      ]
     });
 
-    res.json(stats);
   } catch (error) {
     next(error);
   }
